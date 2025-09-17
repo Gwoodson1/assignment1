@@ -5,6 +5,15 @@ public class DnsClient {
             ClientConfig config = parseArguments(args);
             // ClientEngine engine = new ClientEngine(config);
             // engine.run();
+            // Debug: print all parsed values
+            System.out.println("=== Parsed ClientConfig ===");
+            System.out.println("Timeout:    " + config.timeout);
+            System.out.println("Retries:    " + config.retries);
+            System.out.println("Port:       " + config.port);
+            System.out.println("Query Type: " + config.queryType);
+            System.out.println("Server IP:  " + config.serverIP);
+            System.out.println("Domain:     " + config.domainName);
+            System.out.println("===========================");
         } catch (DnsException e) {
             System.out.println("ERROR\t" + e.getMessage());
         }
