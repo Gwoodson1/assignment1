@@ -43,7 +43,7 @@ public final class DnsPacketBuilder {
         buf.put((byte) (value & 0xFF));
     }
 
-    static byte[] encodeQName(String qname) {
+    static byte[] encodeQName(String qname) throws DnsException{
         String[] partsOfQuery = qname.split("\\.");
 
         int totalLength = 1;
@@ -54,7 +54,7 @@ public final class DnsPacketBuilder {
         ByteBuffer buffer = ByteBuffer.allocate(totalLength);
         for (String part : partsOfQuery) {
             if (part.length() == 0 || part.length() > 63) {
-                throw new IllegalArgumentException("Each label in the domain name must be 63 characters or less.");
+                throw new DnsException("Each label in the domain name must be 63 characters or less.");
             }
             buffer.put((byte) part.length());
             for (char c : part.toCharArray()) {
