@@ -43,8 +43,13 @@ public class DnsClient {
                     port = Integer.parseInt(args[++i]);
                     break;
                 case "-mx":
-                    queryType = "MX";
-                    break;
+                    if (queryType == "A") {
+                        queryType = "MX";
+                        break;
+                    } else {
+                       throw new DnsException("You cannot send both an MX (mail server) and NS (name server) query."); 
+                    }
+
                 case "-ns":
                     queryType = "NS";
                     break;
