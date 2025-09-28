@@ -12,7 +12,7 @@ public final class DnsPacketBuilder {
             code=c;
         }
     }
-    public static byte[] buildQuery(String qname, QType qtype) throws DnsException ß{
+    public static byte[] buildQuery(String qname, QType qtype) throws DnsException {
         int id = ThreadLocalRandom.current().nextInt(0, 0x100000);
 
         byte[] qnameBytes = encodeQName(qname);

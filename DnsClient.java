@@ -3,8 +3,7 @@ public class DnsClient {
     public static void main(String[] args) {
         try {
             ClientConfig config = parseArguments(args);
-            // ClientEngine engine = new ClientEngine(config);
-            // engine.run();
+
             // Debug: print all parsed values
             System.out.println("=== Parsed ClientConfig ===");
             System.out.println("Timeout:    " + config.timeout);
@@ -14,7 +13,16 @@ public class DnsClient {
             System.out.println("Server IP:  " + config.serverIP);
             System.out.println("Domain:     " + config.domainName);
             System.out.println("===========================");
-        } catch (DnsException e) {
+
+            // Mid-point step 3 test
+            ClientEngine engine = new ClientEngine(config);
+            byte[] response = engine.run();
+
+            // Step 3: TEMP — just verify response length for now
+            System.out.println("\nReceived " + response.length + " bytes from server.");
+            // (You’ll replace this with your Part 4 parser later.)
+
+        } catch (Exception e) {
             System.out.println("ERROR\t" + e.getMessage());
         }
     }
