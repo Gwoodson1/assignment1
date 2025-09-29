@@ -21,6 +21,7 @@ public class DnsClient {
             // Step 3: TEMP — just verify response length for now
             System.out.println("\nReceived " + response.length + " bytes from server.");
             // (You’ll replace this with your Part 4 parser later.)
+            DnsPacketParser.parseResponse(response);
 
         } catch (Exception e) {
             System.out.println("ERROR\t" + e.getMessage());
