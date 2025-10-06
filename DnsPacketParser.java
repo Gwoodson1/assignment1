@@ -200,7 +200,6 @@ public class DnsPacketParser {
         return ((long)(buf.get() & 0xFF) << 24) | ((long)(buf.get() & 0xFF) << 16) | ((long)(buf.get() & 0xFF) << 8) | ((long)(buf.get() & 0xFF));
     }
 
-    // Currently does not handle compression **MIGHT NEED TO ADD LATER**
     private static String decodeDomainName(byte[] data, int offset) throws DnsException {
         StringBuilder name = new StringBuilder();
         int jumps = 0;  // guard against infinite loops
