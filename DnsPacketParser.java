@@ -1,7 +1,9 @@
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.List;
 
 public class DnsPacketParser {
-    public static void parseResponse(byte[] response) throws DnsException {
+    public static ParsedResponse parseResponse(byte[] response) throws DnsException {
         ByteBuffer buffer = ByteBuffer.wrap(response);
 
         // Header information (to be used later)
@@ -28,8 +30,6 @@ public class DnsPacketParser {
         // Decode the flags and ensure no errors
         boolean qr = (flags & 0x8000) != 0;
         int rcode = (flags & 0x000F);
-        System.out.println("QR (response?): " + qr);
-        System.out.println("RCODE (return code): " + rcode);
         if (rcode != 0) {
             throw new DnsException("Server returned error code " + rcode);
         }
@@ -46,12 +46,13 @@ public class DnsPacketParser {
             buffer.position(buffer.position() + 4);
         }
 
-        // Now loop through and print the answers
-        System.out.println("\n=== DNS ANSWERS ===");
+        List<DnsRecord> records = new ArrayList<>();
+
+        // Answers: collect printable RRs
         for (int i = 0; i < ancount; i++) {
+            // skip owner name (handles label or pointer)
             int len = buffer.get() & 0xFF;
             if ((len & 0xC0) == 0xC0) {
-                // This means that we hit a pointer compression case, so skip the second pointer byte for now
                 buffer.get();
             } else {
                 while (len > 0) {
@@ -60,7 +61,6 @@ public class DnsPacketParser {
                 }
             }
 
-            // Get the fixed fields from the answer
             int ansType = getU16(buffer);
             int ansClass = getU16(buffer);
             long ansTtl = getU32(buffer);
@@ -73,40 +73,121 @@ public class DnsPacketParser {
                 throw new DnsException("Unexpected CLASS value: " + ansClass);
             }
 
-            // Now check each type of record and parse accordingly
-            // DEBUG ANSWER TYPE
-            System.out.println("DEBUG: Record Type = " + ansType + ", Length = " + ansRdlength);
             switch (ansType) {
-                // Case 1 = A record
-                case 1:
+                case 1: // A
                     if (ansRdlength == 4) {
-                        String ipAddress = String.format("%d.%d.%d.%d", (rdata[0] & 0xFF), (rdata[1] & 0xFF), (rdata[2] & 0xFF), (rdata[3] & 0xFF));
-                        System.out.printf("IP\t%s\t%d\t%s%n", ipAddress, ansTtl, isAuthoritative ? "auth" : "nonauth");
-                    }   
+                        String ipAddress = String.format("%d.%d.%d.%d",
+                                (rdata[0] & 0xFF), (rdata[1] & 0xFF),
+                                (rdata[2] & 0xFF), (rdata[3] & 0xFF));
+                        records.add(new DnsRecord(RRType.A, ipAddress, null, ansTtl, isAuthoritative, false));
+                    }
                     break;
-                // Case 2 = NS record
-                case 2:
+                case 2: // NS
+                {
                     String nsAnswer = decodeDomainName(response, rdataStart);
-                    System.out.printf("NS\t%s\t%d\t%s%n", nsAnswer, ansTtl, isAuthoritative ? "auth" : "nonauth");
+                    records.add(new DnsRecord(RRType.NS, nsAnswer, null, ansTtl, isAuthoritative, false));
                     break;
-                // Case 5 = CNAME record
-                case 5:
+                }
+                case 5: // CNAME
+                {
                     String cnameAnswer = decodeDomainName(response, rdataStart);
-                    System.out.printf("CNAME\t%s\t%d\t%s%n", cnameAnswer, ansTtl, isAuthoritative ? "auth" : "nonauth");
+                    records.add(new DnsRecord(RRType.CNAME, cnameAnswer, null, ansTtl, isAuthoritative, false));
                     break;
-                // Case 15 = MX record
-                case 15:
+                }
+                case 15: // MX
+                {
                     ByteBuffer mxBuffer = ByteBuffer.wrap(rdata);
                     int preference = getU16(mxBuffer);
                     String exchange = decodeDomainName(response, rdataStart + 2);
-                    System.out.printf("MX\t%s\t%d\t%d\t%s%n", exchange, preference, ansTtl, isAuthoritative ? "auth" : "nonauth");
+                    records.add(new DnsRecord(RRType.MX, exchange, preference, ansTtl, isAuthoritative, false));
                     break;
-                // All other types should be ignored
+                }
                 default:
+                    // ignore other types
                     break;
             }
         }
+
+        // Authority section: advance buffer, do not collect
+        for (int i = 0; i < nscount; i++) {
+            // skip owner name
+            int len = buffer.get() & 0xFF;
+            if ((len & 0xC0) == 0xC0) {
+                buffer.get();
+            } else {
+                while (len > 0) {
+                    buffer.position(buffer.position() + len);
+                    len = buffer.get() & 0xFF;
+                }
+            }
+
+            // skip TYPE, CLASS, TTL, RDLENGTH, and RDATA
+            getU16(buffer);          // TYPE
+            getU16(buffer);          // CLASS
+            getU32(buffer);          // TTL
+            int rdlen = getU16(buffer);
+            buffer.position(buffer.position() + rdlen);
+        }
+
+        // Additional section: collect printable RRs and tag as additional
+    for (int i = 0; i < arcount; i++) {
+        // skip owner name
+        int len = buffer.get() & 0xFF;
+        if ((len & 0xC0) == 0xC0) {
+            buffer.get();
+        } else {
+            while (len > 0) {
+                buffer.position(buffer.position() + len);
+                len = buffer.get() & 0xFF;
+            }
+        }
+
+        int type = getU16(buffer);
+        int rrClass = getU16(buffer);
+        long ttl = getU32(buffer);
+        int rdlen = getU16(buffer);
+        int rdataStart = buffer.position();
+        byte[] rdata = new byte[rdlen];
+        buffer.get(rdata);
+
+        if (rrClass != 1) continue; // only IN
+
+        switch (type) {
+            case 1: // A
+                if (rdlen == 4) {
+                    String ip = String.format("%d.%d.%d.%d",
+                            (rdata[0] & 0xFF), (rdata[1] & 0xFF),
+                            (rdata[2] & 0xFF), (rdata[3] & 0xFF));
+                    records.add(new DnsRecord(RRType.A, ip, null, ttl, isAuthoritative, true));
+                }
+                break;
+            case 2: // NS
+            {
+                String ns = decodeDomainName(response, rdataStart);
+                records.add(new DnsRecord(RRType.NS, ns, null, ttl, isAuthoritative, true));
+                break;
+            }
+            case 5: // CNAME
+            {
+                String cname = decodeDomainName(response, rdataStart);
+                records.add(new DnsRecord(RRType.CNAME, cname, null, ttl, isAuthoritative, true));
+                break;
+            }
+            case 15: // MX
+            {
+                ByteBuffer mx = ByteBuffer.wrap(rdata);
+                int pref = getU16(mx);
+                String exch = decodeDomainName(response, rdataStart + 2);
+                records.add(new DnsRecord(RRType.MX, exch, pref, ttl, isAuthoritative, true));
+                break;
+            }
+            default:
+                // ignore
+                break;
+        }
     }
+    return new ParsedResponse(ancount, arcount, records);
+}
 
 
 

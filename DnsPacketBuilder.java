@@ -68,4 +68,3 @@ public final class DnsPacketBuilder {
 }
 
 
-// byte[] query = DnsPacketBuilder.buildQuery(domain, DnsPacketBuilder.QType.A);

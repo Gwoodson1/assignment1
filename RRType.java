@@ -1,0 +1,1 @@
+public enum RRType { A, CNAME, MX, NS }

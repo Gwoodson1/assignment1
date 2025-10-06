@@ -1,32 +1,24 @@
 
 public class DnsClient {
-    public static void main(String[] args) {
-        try {
-            ClientConfig config = parseArguments(args);
+public static void main(String[] args) {
+    try {
+        ClientConfig cfg = parseArguments(args);
+        OutputFormatter.printQueryBanner(cfg);
 
-            // Debug: print all parsed values
-            System.out.println("=== Parsed ClientConfig ===");
-            System.out.println("Timeout:    " + config.timeout);
-            System.out.println("Retries:    " + config.retries);
-            System.out.println("Port:       " + config.port);
-            System.out.println("Query Type: " + config.queryType);
-            System.out.println("Server IP:  " + config.serverIP);
-            System.out.println("Domain:     " + config.domainName);
-            System.out.println("===========================");
+        ClientEngine engine = new ClientEngine(cfg);
+        DnsResponse wire = engine.run();
 
-            // Mid-point step 3 test
-            ClientEngine engine = new ClientEngine(config);
-            byte[] response = engine.run();
+        ParsedResponse pr = DnsPacketParser.parseResponse(wire.data);
 
-            // Step 3: TEMP — just verify response length for now
-            System.out.println("\nReceived " + response.length + " bytes from server.");
-            // (You’ll replace this with your Part 4 parser later.)
-            DnsPacketParser.parseResponse(response);
+        OutputFormatter.printSuccess(wire.elapsedTime, wire.retriesUsed);
+        OutputFormatter.printRecords(pr);
 
-        } catch (Exception e) {
-            System.out.println("ERROR\t" + e.getMessage());
-        }
+    } catch (DnsException e) {
+        OutputFormatter.printError(e.getMessage());
+    } catch (Exception e) {
+        OutputFormatter.printError("Unexpected response " + e.getMessage());
     }
+}
 
     // Add  'throws DnsException' after it's defined
     private static ClientConfig parseArguments(String[] args) throws DnsException {
