@@ -11,7 +11,7 @@ public class ClientEngine {
         this.config = config;
     }
 
-    public byte[] run() throws DnsException {
+    public DnsResponse run() throws DnsException {
         try {
             DatagramSocket socket = new DatagramSocket();
 
@@ -62,11 +62,9 @@ public class ClientEngine {
             long endTime = System.nanoTime();
             double elapsedTime = (endTime - startTime) / 1000000000.0;
 
-            // Print results, copy and return the response from the server, and close the socket
-            System.out.println("Response received after " + elapsedTime + " seconds and (" + retryCounter + " retries)");
             byte[] responseData = Arrays.copyOf(receivePacket.getData(), receivePacket.getLength());
             socket.close();
-            return responseData;
+            return new DnsResponse(responseData, elapsedTime, retryCounter);
 
         } catch (Exception e) {
             throw new DnsException("There was an error with the socket: " + e.getMessage(), e);
